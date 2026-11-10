@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String  @id @default(uuid())
+  identifier  String  @unique
+  password    String
+  role        UserRole
+  profile     Profile?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Profile {
+  id          String             @id @default(uuid())
+  userId      String             @unique
+  email       String             @unique
+  description String
+  user        User               @relation(fields: [userId], references: [id])
+  clients     ClientProfile[]
+  employees   EmployeeProfile[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model ClientProfile {
+  id           String        @id @default(uuid())
+  profileId    String
+  profile      Profile       @relation(fields: [profileId], references: [id])
+  status       ProfileStatus
+  carts        Cart[]
+  orders       Order[]       @relation("Client")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model EmployeeProfile {
+  id             String        @id @default(uuid())
+  profileId      String
+  profile        Profile       @relation(fields: [profileId], references: [id])
+  status         ProfileStatus
+  managedOrders  Order[]       @relation("Manager")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Cart {
+  id           String @id @default(uuid())
+  clientId     String?
+  client       ClientProfile?  @relation(fields: [clientId], references: [id])
+  items        CartItem[]
+  order        Order?
+  status       OrderStatus
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model CartItem {
+  id           String   @id @default(uuid())
+  cartId       String
+  cart         Cart     @relation(fields: [cartId], references: [id])
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id])
+  quantity     Decimal  @default(0)
+  price        Decimal  @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Order {
+  id           String   @id @default(uuid())
+  date         DateTime
+  cartId       String?  @unique
+  cart         Cart?    @relation(fields: [cartId], references: [id])
+  clientId     String?
+  client       ClientProfile? @relation("Client", fields: [clientId], references: [id])
+  items        OrderItem[]
+  status       OrderStatus
+  managerId    String?
+  manager      EmployeeProfile? @relation("Manager", fields: [managerId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model OrderItem {
+  id           String   @id @default(uuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id])
+  product      Product  @relation("ProductPosition", fields: [positionId], references: [id])
+  quantity     Decimal  @default(0)
+  price        Decimal  @default(0)
+
+  positionId   String
+  positionType OrderItemType
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id          String @id @default(uuid())
+  name        String
+  description String? @db.Text @default("")
+  price       Decimal  @default(0)
+  stock       Decimal  @default(0)
+  cartItems   CartItem[]
+  orderItems  OrderItem[] @relation("ProductPosition")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum UserRole {
+  ADMIN
+  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELED
+}
+
+enum CartStatus {
+  ONGOING
+  ORDERED
+  EXPIRED
+}
+
+enum OrderItemType {
+  PRODUCT
+}
+
+enum ProfileStatus {
+  ACTIVE
+  BLOCKED
+}
